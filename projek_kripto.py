@@ -26,16 +26,43 @@ os.makedirs(RECEIVED_DIR, exist_ok=True)
 # ======================================
 # CUSTOM WIDGETS
 # ======================================
-class CyberButton(tk.Button):
+class ProfessionalButton(tk.Button):
     def __init__(self, master, **kwargs):
-        bg_color = kwargs.pop('bg', "#073f5f")
-        hover_color = "#0a8fb0"
+        # Default colors
+        default_bg = kwargs.pop('bg', "#1f2a40") 
+        default_fg = kwargs.pop('fg', "white")
+        hover_color = "#3a4a68" 
+        active_color = "#2c3b53" 
+        
         super().__init__(master, **kwargs)
-        self.configure(bg=bg_color, fg="white", activebackground=hover_color, 
+        self.default_bg = default_bg
+        
+        self.configure(bg=default_bg, fg=default_fg, activebackground=active_color, 
                        activeforeground="white", bd=0, relief="flat", cursor="hand2",
                        font=("Segoe UI", 10, "bold"), padx=12, pady=5)
+        
+        # Binding hover effect
         self.bind("<Enter>", lambda e: self.config(bg=hover_color))
-        self.bind("<Leave>", lambda e: self.config(bg=bg_color))
+        self.bind("<Leave>", lambda e: self.config(bg=self.default_bg))
+
+class ChatSendButton(ProfessionalButton):
+    # Button with a subtle "send" animation effect (background pulse)
+    def __init__(self, master, **kwargs):
+        self.base_color = kwargs.pop('bg', "#0d6efd") # Warna dasar biru profesional
+        super().__init__(master, bg=self.base_color, **kwargs)
+        self.default_bg = self.base_color # Override default_bg for better control
+
+    def on_click_animation(self):
+        # Animasi pulsa singkat saat tombol ditekan
+        original_bg = self.base_color
+        pulse_color = "#3399ff"
+        
+        # Step 1: Pulse (brighten)
+        self.config(bg=pulse_color)
+        
+        # Step 2: Return to normal after a short delay
+        self.after(100, lambda: self.config(bg=original_bg))
+        self.after(100, lambda: self.config(bg=self.base_color)) # Ensure it returns to base
 
 # ======================================
 # APLIKASI UTAMA
@@ -43,7 +70,7 @@ class CyberButton(tk.Button):
 class ECDHChatApp:
     def __init__(self, root):
         self.root = root
-        root.title("ECDH Secure Chat — Cyber Enterprise")
+        root.title("ECDH Secure Chat — Professional Enterprise")
         
         # --- Full Screen Setup ---
         try:
@@ -51,14 +78,17 @@ class ECDHChatApp:
         except:
             root.attributes('-fullscreen', True) 
 
-        # --- Theme Colors ---
-        self.bg_top = "#051626"
-        self.bg_bottom = "#020b12"
-        self.card_bg = "#0e1720"
-        self.card_border = "#1c3a4f"
-        self.accent = "#00E0FF"
-        self.text_primary = "#d7eef6"
+        # --- Theme Colors (Professional Dark/Blue) ---
+        self.bg_top = "#141e30" # Header/Top Background (Dark Blue)
+        self.bg_bottom = "#0c121e" # Main Background (Slightly Darker)
+        self.card_bg = "#1f2a40" # Panel/Card Background (Blue Grey)
+        self.card_border = "#4e6a8c" # Border
+        self.accent = "#ffc107" # Professional Gold/Amber Accent
+        self.text_primary = "#e0e7ee" # Light Text
+        self.text_secondary = "#a0b2c8" # Secondary Text
         self.mono_font = ("Consolas", 10)
+        self.text_chat = "#ffffff" # White for chat logs
+        self.log_success = "#4CAF50" # Green for success logs
 
         # --- Main Layout ---
         root.configure(bg=self.bg_bottom)
@@ -75,45 +105,61 @@ class ECDHChatApp:
         self.shared_key = None
 
         # --- Build UI ---
+        self._setup_styles()
         self._build_header()
         self._build_chat_area()
         self._build_bottom_area()
-        self._setup_styles()
 
     def _setup_styles(self):
+        # Konfigurasi Ttk Styles
         style = ttk.Style()
         style.theme_use('clam')
-        style.configure("Cyber.Horizontal.TProgressbar", 
-                        troughcolor='#08131b', 
+        
+        # Combobox style
+        style.configure("TCombobox", 
+                        fieldbackground=self.card_bg, 
+                        background=self.card_bg, 
+                        foreground=self.text_primary, 
+                        selectbackground=self.accent, 
+                        selectforeground=self.card_bg,
+                        bordercolor=self.card_border,
+                        arrowcolor=self.accent)
+        style.map("TCombobox",
+                  fieldbackground=[('readonly', self.card_bg)])
+
+        # Progressbar style (Accent Gold)
+        style.configure("Professional.Horizontal.TProgressbar", 
+                        troughcolor='#333a4c', 
                         background=self.accent, 
                         bordercolor=self.card_border, 
                         lightcolor=self.accent, 
-                        darkcolor=self.accent)
+                        darkcolor=self.accent,
+                        thickness=10)
 
     # ----------------------------
     # UI: HEADER
     # ----------------------------
     def _build_header(self):
-        header_frame = tk.Frame(self.root, bg=self.card_bg, pady=10, padx=20)
+        header_frame = tk.Frame(self.root, bg=self.bg_top, pady=10, padx=20)
         header_frame.grid(row=0, column=0, sticky="ew")
         
         # Garis aksen bawah header
         tk.Frame(header_frame, bg=self.accent, height=2).pack(side="bottom", fill="x")
 
         # Container Tombol
-        ctrl_frame = tk.Frame(header_frame, bg=self.card_bg)
+        ctrl_frame = tk.Frame(header_frame, bg=self.bg_top)
         ctrl_frame.pack(side="top", fill="x", pady=5)
 
         # Dropdown Curve
-        tk.Label(ctrl_frame, text="ECC Curve:", bg=self.card_bg, fg="white", font=("Segoe UI", 11)).pack(side="left", padx=5)
-        self.curve_cb = ttk.Combobox(ctrl_frame, values=list(CURVE_MAP.keys()), state="readonly", width=25)
+        tk.Label(ctrl_frame, text="ECC Curve:", bg=self.bg_top, fg=self.text_primary, font=("Segoe UI", 11)).pack(side="left", padx=5)
+        self.curve_cb = ttk.Combobox(ctrl_frame, values=list(CURVE_MAP.keys()), state="readonly", width=25, style="TCombobox")
         self.curve_cb.current(0)
-        self.curve_cb.pack(side="left", padx=5)
+        self.curve_cb.pack(side="left", padx=10)
 
         # Tombol Aksi Utama
-        CyberButton(ctrl_frame, text="1. Generate Keys", command=self.generate_keys).pack(side="left", padx=10)
-        CyberButton(ctrl_frame, text="2. Hitung Shared Key", command=self.compute_shared).pack(side="left", padx=10)
-        CyberButton(ctrl_frame, text="Reset / Clear", command=self.reset_app, bg="#5f0707").pack(side="right", padx=10)
+        ProfessionalButton(ctrl_frame, text="1. Generate Keys", command=self.generate_keys, bg="#0d6efd").pack(side="left", padx=10)
+        ProfessionalButton(ctrl_frame, text="2. Hitung Shared Key", command=self.compute_shared, bg="#198754").pack(side="left", padx=10)
+        ProfessionalButton(ctrl_frame, text="Reset / Clear", command=self.reset_app, bg="#dc3545").pack(side="right", padx=10)
 
     # ----------------------------
     # UI: CHAT AREA (TENGAH)
@@ -138,30 +184,41 @@ class ECDHChatApp:
 
     def _create_user_panel(self, parent, name, col, send_cmd, file_cmd):
         # Frame Kartu
-        frame = tk.Frame(parent, bg=self.card_bg, bd=1, relief="solid")
+        frame = tk.Frame(parent, bg=self.card_bg, bd=1, relief="solid", highlightbackground=self.card_border, highlightthickness=1)
         frame.grid(row=0, column=col, sticky="nsew", padx=10)
         
         # Judul User
-        tk.Label(frame, text=name, bg=self.card_bg, fg=self.accent, font=("Segoe UI", 14, "bold")).pack(pady=5)
+        tk.Label(frame, text=name, bg=self.card_bg, fg=self.accent, font=("Segoe UI", 14, "bold")).pack(pady=8)
         
         # Area Chat Log (Output)
-        log = scrolledtext.ScrolledText(frame, bg="#050b10", fg=self.text_primary, 
-                                        insertbackground="white", font=self.mono_font, relief="flat")
+        log = scrolledtext.ScrolledText(frame, bg="#0c121e", fg=self.text_chat, 
+                                        insertbackground=self.accent, font=self.mono_font, relief="flat", bd=0, padx=10, pady=10)
         log.pack(fill="both", expand=True, padx=10, pady=5)
         
         # Area Input Pesan
         input_frame = tk.Frame(frame, bg=self.card_bg)
         input_frame.pack(fill="x", padx=10, pady=10)
         
-        entry = tk.Entry(input_frame, bg="#1a2633", fg="white", font=("Segoe UI", 11), relief="flat", insertbackground="white")
+        entry = tk.Entry(input_frame, bg="#2c3b53", fg="white", font=("Segoe UI", 11), relief="flat", insertbackground="white", bd=0)
         entry.pack(side="left", fill="x", expand=True, padx=(0, 10), ipady=5)
+#                                                            ^^^^^^^ Ditambahkan
         
-        # Tombol Kirim
-        CyberButton(input_frame, text="Kirim Pesan", command=send_cmd).pack(side="right")
-        CyberButton(input_frame, text="Kirim File", command=file_cmd, bg="#075f48").pack(side="right", padx=5)
+        # Tombol Kirim Pesan dengan animasi
+        send_btn = ChatSendButton(input_frame, text="Kirim Pesan", command=lambda: self.execute_and_animate(send_cmd, send_btn))
+        send_btn.pack(side="right")
+        
+        # Tombol Kirim File
+        ProfessionalButton(input_frame, text="Kirim File", command=file_cmd, bg="#198754").pack(side="right", padx=5)
 
         return {'log': log, 'input': entry}
 
+    def execute_and_animate(self, command_fn, button_widget):
+        # Run animation first
+        if isinstance(button_widget, ChatSendButton):
+            button_widget.on_click_animation()
+        # Then execute the command after a slight delay (or immediately if blocking is handled by process thread)
+        command_fn()
+        
     # ----------------------------
     # UI: BOTTOM INFO (BAWAH)
     # ----------------------------
@@ -174,28 +231,28 @@ class ECDHChatApp:
         bottom_frame.columnconfigure(2, weight=1)
         bottom_frame.rowconfigure(0, weight=1)
 
-        # Kolom 1: Key Info
-        self.panel_keys = self._create_info_panel(bottom_frame, "Key Information (Alice & Bob)", 0)
+        # Kolom 1: Key Info (Warna Sekunder/Detail)
+        self.panel_keys = self._create_info_panel(bottom_frame, "Key Information (Alice & Bob)", 0, self.text_secondary)
         
-        # Kolom 2: Shared Key 
-        self.panel_shared = self._create_info_panel(bottom_frame, "Shared Key Calculation", 1)
+        # Kolom 2: Shared Key (Menggunakan Warna Sekunder untuk Detail Log, menghilangkan definisi yang duplikat)
+        self.panel_shared = self._create_info_panel(bottom_frame, "Shared Key Calculation", 1, self.text_secondary)
 
-        # Kolom 3: Simulasi Log
-        self.panel_sim = self._create_info_panel(bottom_frame, "Simulation Logs & Steps", 2)
+        # Kolom 3: Simulasi Log (Warna Primer/Utama)
+        self.panel_sim = self._create_info_panel(bottom_frame, "Simulation Logs & Steps", 2, self.text_primary)
         
         # Tombol Auto Simulation di panel kanan
         btn_frame = tk.Frame(self.panel_sim['frame'], bg=self.card_bg)
         btn_frame.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
-        CyberButton(btn_frame, text="Run Full Simulation", command=self.run_full_simulation, bg="#5f0753").pack()
+        ProfessionalButton(btn_frame, text="Run Full Simulation", command=self.run_full_simulation, bg="#6f42c1").pack()
 
-    def _create_info_panel(self, parent, title, col):
-        container = tk.Frame(parent, bg=self.card_bg, bd=1, relief="solid")
+    def _create_info_panel(self, parent, title, col, text_color):
+        container = tk.Frame(parent, bg=self.card_bg, bd=1, relief="solid", highlightbackground=self.card_border, highlightthickness=1)
         container.grid(row=0, column=col, sticky="nsew", padx=5)
         
         tk.Label(container, text=title, bg=self.card_bg, fg=self.accent, font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=10, pady=5)
         
-        text_area = scrolledtext.ScrolledText(container, bg="#02080c", fg="#00ff9d", 
-                                              font=("Consolas", 9), relief="flat", height=10)
+        text_area = scrolledtext.ScrolledText(container, bg="#0c121e", fg=text_color, 
+                                              font=("Consolas", 9), relief="flat", height=10, bd=0, padx=5, pady=5)
         text_area.pack(fill="both", expand=True, padx=5, pady=5)
         return {'text': text_area, 'frame': container}
 
@@ -237,7 +294,6 @@ class ECDHChatApp:
         
         # ----------------------------------------------
         # STEP 2a: ALICE CALCULATES SHARED SECRET
-        # Alice menggunakan Private Key-nya dan Public Key Bob
         # ----------------------------------------------
         self.log_to_panel(self.panel_shared, "--- [STEP 2a] ALICE: Computing Raw Shared Secret ---")
         self.log_to_panel(self.panel_shared, "Menggunakan: Alice_Private_Key * Bob_Public_Key")
@@ -248,7 +304,6 @@ class ECDHChatApp:
 
         # ----------------------------------------------
         # STEP 2b: BOB CALCULATES SHARED SECRET
-        # Bob menggunakan Private Key-nya dan Public Key Alice
         # ----------------------------------------------
         self.log_to_panel(self.panel_shared, "\n--- [STEP 2b] BOB: Computing Raw Shared Secret ---")
         self.log_to_panel(self.panel_shared, "Menggunakan: Bob_Private_Key * Alice_Public_Key")
@@ -267,7 +322,6 @@ class ECDHChatApp:
             
             # ----------------------------------------------
             # STEP 4: DERIVASI KEY (HKDF)
-            # Mengubah Raw Shared Secret menjadi Key AES-256 (32 bytes)
             # ----------------------------------------------
             self.log_to_panel(self.panel_shared, "Melakukan Derivasi Kunci (HKDF-SHA256, Length 32)...")
             hkdf = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"ECDH Chat")
@@ -339,7 +393,8 @@ class ECDHChatApp:
         tk.Label(top, text=task_name, bg=self.card_bg, fg=self.accent, font=("Segoe UI", 12, "bold")).pack(pady=15)
         lbl_status = tk.Label(top, text="Initializing...", bg=self.card_bg, fg="white", font=("Segoe UI", 10))
         lbl_status.pack(pady=5)
-        pb = ttk.Progressbar(top, style="Cyber.Horizontal.TProgressbar", orient="horizontal", length=300, mode="determinate")
+        # Use the new style for progress bar
+        pb = ttk.Progressbar(top, style="Professional.Horizontal.TProgressbar", orient="horizontal", length=300, mode="determinate")
         pb.pack(pady=10)
 
         def worker():
@@ -347,6 +402,7 @@ class ECDHChatApp:
                      ("Transmitting...", 80, 0.5), ("Decrypting & Verifying...", 100, 0.4)]
             for text, val, sleep_time in steps:
                 time.sleep(sleep_time)
+                # Update UI in the main thread
                 self.root.after(0, lambda t=text, v=val: update_ui(t, v))
             time.sleep(0.3)
             self.root.after(0, finish)
@@ -377,7 +433,7 @@ class ECDHChatApp:
             try:
                 dec = self.aes_decrypt(iv, ct, tag).decode()
             except Exception as e:
-                dec = "ERROR"
+                dec = "ERROR (Authentikasi Gagal)"
             t1 = time.perf_counter()
             duration_ms = (t1 - t0) * 1000
 
@@ -411,7 +467,7 @@ class ECDHChatApp:
             try:
                 dec = self.aes_decrypt(iv, ct, tag).decode()
             except:
-                dec = "ERROR"
+                dec = "ERROR (Authentikasi Gagal)"
             t1 = time.perf_counter()
             duration_ms = (t1 - t0) * 1000
 
@@ -442,21 +498,31 @@ class ECDHChatApp:
         
         def process():
             t0 = time.perf_counter()
-            with open(path, "rb") as f: data = f.read()
-            iv, ct, tag = self.aes_encrypt(data)
-            dec_data = self.aes_decrypt(iv, ct, tag)
-            t1 = time.perf_counter()
-            duration_ms = (t1 - t0) * 1000
+            try:
+                with open(path, "rb") as f: data = f.read()
+                iv, ct, tag = self.aes_encrypt(data)
+                dec_data = self.aes_decrypt(iv, ct, tag)
+                t1 = time.perf_counter()
+                duration_ms = (t1 - t0) * 1000
 
-            save_path = os.path.join(RECEIVED_DIR, f"bob_received_{filename}")
-            with open(save_path, "wb") as f: f.write(dec_data)
+                save_path = os.path.join(RECEIVED_DIR, f"bob_received_{filename}")
+                with open(save_path, "wb") as f: f.write(dec_data)
+                status_msg = f"Lokasi Simpan: {save_path}"
+                dec_size = len(dec_data)
+            except Exception as e:
+                t1 = time.perf_counter()
+                duration_ms = (t1 - t0) * 1000
+                ct = b""
+                dec_size = 0
+                status_msg = f"DEKRIPSI GAGAL: {e}"
 
             output_text = (
                 f"[FILE dari Alice]\n"
                 f"Nama File: {filename}\n"
                 f"Ukuran Terenkripsi: {len(ct)} bytes\n"
+                f"Ukuran Terdekripsi: {dec_size} bytes\n"
                 f"Waktu Proses: {duration_ms:.3f} ms\n"
-                f"Lokasi Simpan: {save_path}\n\n"
+                f"{status_msg}\n\n"
             )
             self.bob_chat_log.insert(tk.END, output_text)
             self.log_to_panel(self.panel_sim, f"Alice sent file: {filename}")
@@ -473,21 +539,31 @@ class ECDHChatApp:
         
         def process():
             t0 = time.perf_counter()
-            with open(path, "rb") as f: data = f.read()
-            iv, ct, tag = self.aes_encrypt(data)
-            dec_data = self.aes_decrypt(iv, ct, tag)
-            t1 = time.perf_counter()
-            duration_ms = (t1 - t0) * 1000
+            try:
+                with open(path, "rb") as f: data = f.read()
+                iv, ct, tag = self.aes_encrypt(data)
+                dec_data = self.aes_decrypt(iv, ct, tag)
+                t1 = time.perf_counter()
+                duration_ms = (t1 - t0) * 1000
 
-            save_path = os.path.join(RECEIVED_DIR, f"alice_received_{filename}")
-            with open(save_path, "wb") as f: f.write(dec_data)
+                save_path = os.path.join(RECEIVED_DIR, f"alice_received_{filename}")
+                with open(save_path, "wb") as f: f.write(dec_data)
+                status_msg = f"Lokasi Simpan: {save_path}"
+                dec_size = len(dec_data)
+            except Exception as e:
+                t1 = time.perf_counter()
+                duration_ms = (t1 - t0) * 1000
+                ct = b""
+                dec_size = 0
+                status_msg = f"DEKRIPSI GAGAL: {e}"
 
             output_text = (
                 f"[FILE dari Bob]\n"
                 f"Nama File: {filename}\n"
                 f"Ukuran Terenkripsi: {len(ct)} bytes\n"
+                f"Ukuran Terdekripsi: {dec_size} bytes\n"
                 f"Waktu Proses: {duration_ms:.3f} ms\n"
-                f"Lokasi Simpan: {save_path}\n\n"
+                f"{status_msg}\n\n"
             )
             self.alice_chat_log.insert(tk.END, output_text)
             self.log_to_panel(self.panel_sim, f"Bob sent file: {filename}")

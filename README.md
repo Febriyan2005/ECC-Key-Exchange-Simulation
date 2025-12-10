@@ -54,7 +54,7 @@ The application allows users to visualize each cryptographic step, including key
 
 > Example of the ECC Secure Chat Simulation Interface:
 
-![ECC Secure Chat Screenshot](images/dashboard_preview.png)
+![ECC Secure Chat Screenshot](images/Dashboard_Preview.png)
 
 ---
 
